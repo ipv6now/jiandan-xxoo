@@ -1,0 +1,96 @@
+import requests
+import os
+import re
+from multiprocessing import Pool
+
+
+def get_html(source):  # pass url得到网页html源码
+    headers = {'user-agent': 'Mozilla/5.0(Windows NT 10.0; Win64;x64) AppleWebKit/537.36(KHTML,like Gecko) Chrome/57.0.2987.98 Safari/537.36'
+    }
+    html = requests.get(source,headers=headers)
+    html.encoding='gbk'
+    return html.text
+
+def getimgLink(html):
+    patten = r"<input src='(.+?.jpg)' type='image'.+?"
+    dLink = re.findall(patten,html)
+    print(dLink)
+    return dLink
+
+def getImg(dLink):  # getImg 函数负责下载图片并且判断图片是否存在
+
+    for x in dLink:
+        #name=x.split('/')[-1]
+        name = str(dLink.index(x))+'.jpg'
+        if os.path.exists(name) == True:
+            print('图片已存在')
+        else:
+            with open(name,'wb') as f:
+                headers = {
+            'method':'GET',
+            'scheme':'https',
+            'cache-control':'max-age=0',
+            'cookie':'__cfduid = dd7ad89c4a5d1ca4b6be2639245895c3f1486385069',
+            'user-agent':'Mozilla/5.0(Windows NT 10.0; Win64;x64) AppleWebKit/537.36(KHTML,like Gecko) Chrome/57.0.2987.98 Safari/537.36'
+            }
+                try:
+                    img = requests.get(x,headers=headers,timeout=(3.05, 27)).content
+                    print('下载中...')
+                    f.write(img)
+                    print('完成一张...')
+                except:
+                    print('错误')
+
+
+
+def correct_filename(dLink):  # correct_filename 函数 读取图片直连 经过修改保留图片名字
+    filename_list = []
+    for x in dLink:  # 这里说一下 一开始通过正则表达式结果有部分图片直连不标准
+        temp = x.split('/')[-1]  # 导致后面index out of range
+        filename_list.append(temp)  # 最后还是通过unquote
+        # filename_list.append(temp[74:-2])  # 最后还是通过unquote
+    return filename_list
+def get_page_url(url):
+    html = get_html(url)
+    patten = r'<h3><a href="(.+?.html)" target="_blank" id="">[^font]+?</a></h3>'
+    page_url = re.findall(patten,html)
+    title_patten = r'<h3>.+?target="_blank" id="">([^font]+?)</a></h3>'
+    title = re.findall(title_patten,html)
+    a = dict(zip(title,page_url))
+    return a
+
+
+
+def page_DL(url):  # coreDL 函数把crawler.py里的函数封装了一遍 把所有下载有关的函数封装了
+    html=get_html(url)
+    dLink = getimgLink(html)
+    getImg(dLink)
+    print('下载完成!')
+#page_DL('http://dz.wa3.co/htm_data/16/1704/2335963.html')
+def download_img(url,folder='1024'):
+    if os.path.exists(folder) == True:  # 创建对应的TAG文件夹
+        print('文件夹已经存在 ！')
+    else:
+        os.mkdir(folder)
+    os.chdir(folder)
+    folder_top = os.getcwd()
+    url = url
+
+    a = get_page_url(url)
+    for x in a:
+        if os.path.exists(x) == True:
+            pass
+        else:
+            os.mkdir(x)
+        os.chdir(x)
+        final_url = 'http://dz.wa3.co/'+a.get(x)
+        page_DL(final_url)
+
+        os.chdir(folder_top)
+
+
+
+download_img('http://dz.wa3.co/thread0806.php?fid=16&search=&page=2')
+
+#a=get_page_url('http://dz.wa3.co/thread0806.php?fid=16')
+#print(a)
